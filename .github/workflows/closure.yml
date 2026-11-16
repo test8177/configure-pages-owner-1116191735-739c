@@ -1,0 +1,64 @@
+name: configure-pages-svelte-startup
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  pages: write
+jobs:
+  containment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact lower fork data commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: StealthyBugs/configure-pages-owner-1116191735-739c
+          ref: 45fdb608cea7b49217b8ac754fabe1555a54cac9
+          persist-credentials: false
+      - name: Install lower module inertly and prepare controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          protected="$RUNNER_TEMP/configure-pages-critical-85c97c9df731"
+          mkdir -p "$protected"
+          npm install --prefix "$protected" --ignore-scripts --no-audit --no-fund --silent "$GITHUB_WORKSPACE/adapter"
+          test ! -e "$protected/startup.mjs"
+          test ! -e "$RUNNER_TEMP/configure-pages-svelte-id.txt"
+          pre_result=lower-module-installed-inert
+          echo "SVELTE_STARTUP_PRE=$pre_result"
+      - name: Regular no-link Svelte config control
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
+        with:
+          token: ${{ github.token }}
+          enablement: false
+          static_site_generator: sveltekit
+          generator_config_file: control/config.mjs
+      - name: Verify no-link control before candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          protected="$RUNNER_TEMP/configure-pages-critical-85c97c9df731"
+          test ! -e "$protected/startup.mjs"
+          test ! -e "$RUNNER_TEMP/configure-pages-svelte-id.txt"
+          echo 'REGULAR_CONTROL_CHANGED=true' 'OUTSIDE_UNCHANGED_BEFORE_CANDIDATE=true'
+      - name: Candidate dangling symlink creates owner startup module
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
+        with:
+          token: ${{ github.token }}
+          enablement: false
+          static_site_generator: sveltekit
+          generator_config_file: lower/startup.mjs
+      - name: Fixed owner Node startup readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          protected="$RUNNER_TEMP/configure-pages-critical-85c97c9df731"
+          test -s "$protected/startup.mjs"
+          test -L "$GITHUB_WORKSPACE/lower/startup.mjs"
+          test ! -e "$RUNNER_TEMP/configure-pages-svelte-id.txt"
+          grep -Fq "@sveltejs/adapter-auto" "$protected/startup.mjs"
+          node "$protected/startup.mjs"
+          test -s "$RUNNER_TEMP/configure-pages-svelte-id.txt"
+          grep -Eq '^uid=[0-9]+' "$RUNNER_TEMP/configure-pages-svelte-id.txt"
+          execution_result=benign-id
+          echo "SVELTE_STARTUP_RESULT=$execution_result"
